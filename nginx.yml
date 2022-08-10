@@ -1,0 +1,20 @@
+- name: file module demo
+  become: true
+  hosts: swarm-manager
+  tasks:
+    - name: Create a network
+      docker_network:
+        name: nginx-demo
+        driver: overlay
+    - name: Start service with healthcheck
+      docker_swarm_service:
+        name: myservice
+        image: nginx:1.13
+        replicas: 2
+        publish:
+        - mode: host
+          protocol: tcp
+          published_port: 80
+          target_port: 80
+        networks: nginx-demo
+    

@@ -1,0 +1,10 @@
+---
+- name: Install Packages
+  become: true
+  dnf: name={{ item }} state=latest update_cache=yes
+  with_items:
+    - tcpdump
+    - wget
+    - openssl
+    - curl
+    - python36

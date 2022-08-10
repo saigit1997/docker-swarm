@@ -1,0 +1,97 @@
+---
+
+
+    - name: "Installing Docker Prerequisite packages"
+      become: true
+      yum:
+        name: "{{ item }}"
+        state: latest
+      with_items:
+         - yum-utils
+         - device-mapper-persistent-data
+         - lvm2
+    - name: "Configuring docker-ce repo"
+      become: true
+      yum_repository:
+        name: docker
+        description: repo for docker
+        baseurl: https://download.docker.com/linux/centos/8/x86_64/stable/
+        gpgcheck: no
+
+    - name: " Installing Docker latest version"
+      become: true
+      yum:
+        name: docker-ce
+        state: present
+
+
+    - name: Install docker python package on version 5.0.3
+      become: true
+      ansible.builtin.pip:
+        name: docker==5.0.3
+
+    - name: Start service docker, if not started
+      become: true
+      ansible.builtin.service:
+        name: docker
+        state: started
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#- name: Install Docker Dependencies
+#  become: true
+#  yum: name={{ item }} state=latest update_cache=yes
+#  with_items:
+#    - ca-certificates
+#    - curl
+#  tags: docker
+
+#- name: Get Docker key
+#  become: true
+#  apt_key:
+#    url: https://download.docker.com/linux/ubuntu/gpg
+#    state: present
+#  tags: docker
+
+#- name: Ddd Docker packages to Repository
+#  become: true
+#  apt_repository:
+#    repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_lsb.codename|lower }} stable
+#  tags: docker
+
+#- name: Install Docker-CE
+#  become: true
+#  apt: name="docker-ce" state=latest update_cache=yes
+#  tags: docker
