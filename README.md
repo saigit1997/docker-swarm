@@ -1,6 +1,6 @@
 # ansible-docker-swarm 
 
-
+Note: This Task performed in centos8-aws server & referred from the various tasks in google
 
 
 Setup Docker Swarm with Ansible.
@@ -103,7 +103,7 @@ lem5wmtbkgqbsgw32g56okcf6 *   ip-172-31-14-229.ap-south-1.compute.internal   Rea
 Deploy nginx stack with 3 replicas of nginx service using ansible:
 
 ```
-$ ansible-playbook -i inventory.ini -u centos nginx.yml
+$ ansible-playbook -i inventory.ini -u centos deploy-nginx.yml
 $ docker service ls
  sudo docker service ls
 ID             NAME        MODE         REPLICAS   IMAGE        PORTS

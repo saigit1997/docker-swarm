@@ -3,8 +3,7 @@
   hosts: all
   roles:
     - create-sudo-user
-    - temp-req
-#    - pre-req
+    - pre-req
     - install-modules
     - configure-hosts-file
 
