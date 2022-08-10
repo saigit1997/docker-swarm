@@ -1,8 +1,6 @@
 # ansible-docker-swarm 
 
-[![Say Thanks!](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://saythanks.io/to/ruan.ru.bekker@gmail.com)
-[![Slack Status](https://linux-hackers-slack.herokuapp.com/badge.svg)](https://linux-hackers-slack.herokuapp.com/)
-[![Chat on Slack](https://img.shields.io/badge/chat-on_slack-orange.svg)](https://linux-hackers-slack.herokuapp.com/)
+
 
 
 Setup Docker Swarm with Ansible.
@@ -25,30 +23,23 @@ SSH Config:
 
 ```
 $ cat ~/.ssh/config 
-Host client
-  Hostname client
-  User root
-  IdentityFile /tmp/key.pem
-  StrictHostKeyChecking no
-  UserKnownHostsFile /dev/null
-
 Host swarm-manager
   Hostname swarm-manager
-  User root
+  User centos
   IdentityFile /tmp/key.pem
   StrictHostKeyChecking no
   UserKnownHostsFile /dev/null
 
 Host swarm-worker-1
   Hostname swarm-worker-1
-  User root
+  User centos
   IdentityFile /tmp/key.pem
   StrictHostKeyChecking no
   UserKnownHostsFile /dev/null
 
 Host swarm-worker-2
   Hostname swarm-worker-2
-  User root
+  User centos
   IdentityFile /tmp/key.pem
   StrictHostKeyChecking no
   UserKnownHostsFile /dev/null
@@ -57,15 +48,19 @@ Host swarm-worker-2
 Install Ansible:
 
 ```
-$ apt install python-setuptools -y
-$ easy_install pip
-$ pip install ansible
+$ sudo sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*
+$ sudo sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
+$ sudo dnf update
+$ sudo dnf install epel-release
+$ sudo yum install python3-pip
+$ sudo pip3 install ansible
+
 ```
 
 Ensure passwordless ssh is working:
 
 ```
-$ ansible -i inventory.ini -u root -m ping all
+$ ansible -i inventory.ini -u centos -m ping all
 client | SUCCESS => {
     "changed": false, 
     "ping": "pong"
@@ -87,10 +82,9 @@ swarm-worker-1 | SUCCESS => {
 ## Deploy Docker Swarm
 
 ```
-$ ansible-playbook -i inventory.ini -u root deploy-swarm.yml 
+$ ansible-playbook -i inventory.ini -u centos deploy-swarm.yml 
 PLAY RECAP 
-
-client                     : ok=11   changed=3    unreachable=0    failed=0   
+   
 swarm-manager              : ok=18   changed=4    unreachable=0    failed=0   
 swarm-worker-1             : ok=15   changed=1    unreachable=0    failed=0   
 swarm-worker-2             : ok=15   changed=1    unreachable=0    failed=0   
@@ -99,67 +93,70 @@ swarm-worker-2             : ok=15   changed=1    unreachable=0    failed=0
 SSH to the Swarm Manager and List the Nodes:
 
 ```
-$ docker node ls
-ID                            HOSTNAME            STATUS              AVAILABILITY        MANAGER STATUS      ENGINE VERSION
-0ead0jshzkpyrw7livudrzq9o *   swarm-manager       Ready               Active              Leader              18.03.1-ce
-iwyp6t3wcjdww0r797kwwkvvy     swarm-worker-1      Ready               Active                                  18.03.1-ce
-ytcc86ixi0kuuw5mq5xxqamt1     swarm-worker-2      Ready               Active                                  18.03.1-ce
+$ sudo docker node ls
+ID                            HOSTNAME                                       STATUS    AVAILABILITY   MANAGER STATUS   ENGINE VERSION
+cfgyuvspsjlt2968ixrd0o9ng     ip-172-31-5-205.ap-south-1.compute.internal    Ready     Active                          20.10.17
+tmq0j7mopnw01p7rbin1a2uwq     ip-172-31-8-63.ap-south-1.compute.internal     Ready     Active                          20.10.17
+lem5wmtbkgqbsgw32g56okcf6 *   ip-172-31-14-229.ap-south-1.compute.internal   Ready     Active         Leader           20.10.17
 ```
 
-Create a Nginx Demo Service:
+Deploy nginx stack with 3 replicas of nginx service using ansible:
 
 ```
-$ docker network create --driver overlay appnet
-$ docker service create --name nginx --publish 80:80 --network appnet --replicas 6 nginx
+$ ansible-playbook -i inventory.ini -u centos nginx.yml
 $ docker service ls
-ID                  NAME                MODE                REPLICAS            IMAGE               PORTS
-k3vwvhmiqbfk        nginx               replicated          6/6                 nginx:latest        *:80->80/tcp
+ sudo docker service ls
+ID             NAME        MODE         REPLICAS   IMAGE        PORTS
+3nm12vru9x9n   myservice   replicated   3/3        nginx:1.13   *:80->80/tcp
 
 $ docker service ps nginx
-ID                  NAME                IMAGE               NODE                DESIRED STATE       CURRENT STATE            ERROR               PORTS
-tspsypgis3qe        nginx.1             nginx:latest        swarm-manager       Running             Running 34 seconds ago                       
-g2f0ytwb2jjg        nginx.2             nginx:latest        swarm-worker-1      Running             Running 34 seconds ago                       
-clcmew8bcvom        nginx.3             nginx:latest        swarm-manager       Running             Running 34 seconds ago                       
-q293r8zwu692        nginx.4             nginx:latest        swarm-worker-2      Running             Running 34 seconds ago                       
-sv7bqa5e08zw        nginx.5             nginx:latest        swarm-worker-1      Running             Running 34 seconds ago                       
-r7qg9nk0a9o2        nginx.6             nginx:latest        swarm-worker-2      Running             Running 34 seconds ago   
+             
+sudo docker service ps myservice
+ID             NAME              IMAGE        NODE                                           DESIRED STATE   CURRENT STATE             ERROR     PORTS
+sduqchjeqzn8   myservice.1       nginx:1.13   ip-172-31-8-63.ap-south-1.compute.internal     Running         Running 13 minutes ago              *:80->80/tcp,*:80->80/tcp
+odnsdl8uu9v0   myservice.2       nginx:1.13   ip-172-31-5-205.ap-south-1.compute.internal    Running         Running 13 minutes ago              *:80->80/tcp,*:80->80/tcp
+llwt85gwauo5   myservice.3       nginx:1.13   ip-172-31-14-229.ap-south-1.compute.internal   Running         Running 3 minutes ago               *:80->80/tcp,*:80->80/tcp                       
+   
 ```
 
 Test the Application:
 
 ```
-$ curl -i http://192.168.1.10
+$  curl -i 3.110.183.249
 HTTP/1.1 200 OK
-Server: nginx/1.15.0
-Date: Thu, 14 Jun 2018 10:01:34 GMT
+Server: nginx/1.13.12
+Date: Wed, 10 Aug 2022 10:12:14 GMT
 Content-Type: text/html
 Content-Length: 612
-Last-Modified: Tue, 05 Jun 2018 12:00:18 GMT
+Last-Modified: Mon, 09 Apr 2018 16:01:09 GMT
 Connection: keep-alive
-ETag: "5b167b52-264"
+ETag: "5acb8e45-264"
 Accept-Ranges: bytes
+
+<!DOCTYPE html>
+<html>
+<head>
+<title>Welcome to nginx!</title>
+<style>
+    body {
+        width: 35em;
+        margin: 0 auto;
+        font-family: Tahoma, Verdana, Arial, sans-serif;
+    }
+</style>
+</head>
+<body>
+<h1>Welcome to nginx!</h1>
+<p>If you see this page, the nginx web server is successfully installed and
+working. Further configuration is required.</p>
+
+<p>For online documentation and support please refer to
+<a href="http://nginx.org/">nginx.org</a>.<br/>
+Commercial support is available at
+<a href="http://nginx.com/">nginx.com</a>.</p>
+
+<p><em>Thank you for using nginx.</em></p>
+</body>
+</html>
+
 ```
-
-## Delete the Swarm:
-
-```
-$ ansible-playbook -i inventory.ini -u root delete-swarm.yml 
-
-PLAY RECAP 
-swarm-manager              : ok=2    changed=1    unreachable=0    failed=0   
-swarm-worker-1             : ok=2    changed=1    unreachable=0    failed=0   
-swarm-worker-2             : ok=2    changed=1    unreachable=0    failed=0   
-```
-
-Ensure the Nodes is removed from the Swarm, SSH to your Swarm Manager:
-
-```
-$ docker node ls
-Error response from daemon: This node is not a swarm manager. Use "docker swarm init" or "docker swarm join" to connect this node to swarm and try again.
-```
-
-Thanks a lot to [lucj](https://github.com/lucj/swarm-rexray-ceph), make sure to checkout his repo.
-
-## Stargazers over time
-
-[![Stargazers over time](https://starchart.cc/ruanbekker/ansible-docker-swarm.svg)](https://starchart.cc/ruanbekker/ansible-docker-swarm)

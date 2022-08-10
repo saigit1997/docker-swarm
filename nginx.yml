@@ -10,7 +10,7 @@
       docker_swarm_service:
         name: myservice
         image: nginx:1.13
-        replicas: 2
+        replicas: 3
         publish:
         - mode: host
           protocol: tcp
